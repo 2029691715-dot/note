@@ -1,26 +1,58 @@
-# Notes - 现代化笔记应用
+# Notes - 现代化笔记应用 v1.1.0
 
-基于设计文档构建的现代化笔记应用，支持双向链接和块引用功能。
+基于设计文档构建的现代化笔记应用，支持双向链接、块引用、标签系统和历史版本回滚。
 
 ## 核心功能
 
 ### 双向链接 (Bidirectional Links)
+- 输入 `[[` 自动弹出笔记列表供选择
 - 使用 `[[笔记标题]]` 语法链接其他笔记
 - 自动计算反向链接（Backlinks）
 - 支持知识图谱可视化
+- 按 `Ctrl+K` 快速插入链接
 
 ### 块引用 (Block Reference)
 - 使用 `[[笔记标题^block-id]]` 引用特定段落
-- 支持嵌入同步模式
+- 支持嵌入同步模式 `![[笔记^block-id]]`
+- 块引用面板展示所有引用的块
 
-### 编辑器
-- 基于 Tiptap 的富文本编辑
-- 支持 Markdown 语法
-- 所见即所得渲染
+### 标签系统 (Tags)
+- 使用 `#标签` 自动识别和分类
+- 侧边栏显示所有标签
+- 点击标签筛选相关笔记
+- 笔记列表显示标签预览
 
-### 数据存储
-- 本地 IndexedDB/localStorage 存储
+### 图片拖拽上传
+- 直接拖拽图片到编辑器
+- 自动转换为 Base64 存储
+
+### 历史版本回滚
+- 自动保存修改历史（最多20条）
+- 点击时钟图标查看历史
+- 支持回滚到任意历史版本
+
+### 快捷键增强
+- `Ctrl+N` - 新建笔记
+- `Ctrl+S` - 手动保存
+- `Ctrl+K` - 插入双向链接
+- `Ctrl+方向键` - 浏览自动补全列表
+- `Escape` - 关闭自动补全弹窗
+
+### 移动端适配
+- 窄屏（<768px）自动切换单栏布局
+- 汉堡菜单导航
+- 浮动按钮新建笔记
+
+### 搜索增强
+- 搜索结果高亮匹配关键词
+- 支持标题和内容搜索
+
+## 数据存储
+
+- **IndexedDB** - 可选，支持更大数据量
+- **localStorage** - 默认，兼容旧版本
 - 自动保存（防抖 1.5 秒）
+- 一键导出为 Markdown `.zip`
 - 支持导入/导出 JSON
 
 ## 技术栈
@@ -28,7 +60,7 @@
 - **前端框架**: Vue 3 + Pinia
 - **编辑器**: Tiptap 2.x
 - **构建工具**: Vite 5
-- **可选桌面端**: Tauri 2.x
+- **压缩库**: JSZip（用于 Markdown 导出）
 
 ## 运行
 
@@ -47,27 +79,21 @@ npm run build
 
 ```
 notes-app/
-├── index.html          # 入口 HTML
-├── package.json        # 依赖配置
-├── vite.config.js      # Vite 配置
+├── index.html          # 入口 HTML（含全部样式）
+├── package.json       # 依赖配置
+├── vite.config.js     # Vite 配置
 └── src/
-    ├── main.js         # 入口文件
-    ├── App.vue         # 主应用组件
+    ├── main.js        # 入口文件
+    ├── App.vue        # 主应用组件（移动端适配）
     ├── stores/
-    │   └── notes.js    # Pinia 状态管理
+    │   └── notes.js   # Pinia 状态管理
     └── components/
-        ├── SidebarNav.vue      # 左侧导航
-        ├── FileList.vue        # 中间文件列表
-        ├── EditorArea.vue     # 主编辑区
-        ├── SettingsPanel.vue  # 设置面板
-        └── GraphView.vue      # 知识图谱
+        ├── SidebarNav.vue       # 左侧导航
+        ├── FileList.vue         # 文件列表（标签筛选、高亮）
+        ├── EditorArea.vue       # 编辑器（自动补全、历史、块引用）
+        ├── SettingsPanel.vue   # 设置面板（导出功能）
+        └── GraphView.vue        # 知识图谱
 ```
-
-## 快捷键
-
-- `Ctrl+N` - 新建笔记
-- `Ctrl+S` - 手动保存
-- `[[` - 插入双向链接
 
 ## 设计参考
 
