@@ -8,6 +8,10 @@ import Link from '@tiptap/extension-link'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Image from '@tiptap/extension-image'
+import Table from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
 import { useNotesStore } from '../stores/notes'
 
 const props = defineProps({
@@ -19,6 +23,10 @@ const store = useNotesStore()
 
 const title = ref('')
 const showHistory = ref(false)
+const showTableModal = ref(false)
+const tableRows = ref(3)
+const tableCols = ref(3)
+const fileInputRef = ref(null)
 
 // 双向链接自动补全
 const showAutocomplete = ref(false)
@@ -82,7 +90,14 @@ const editor = useEditor({
     Image.configure({
       inline: true,
       allowBase64: true
-    })
+    }),
+    Table.configure({
+      resizable: true,
+      HTMLAttributes: { class: 'editor-table' }
+    }),
+    TableRow,
+    TableCell,
+    TableHeader
   ],
   content: '',
   editorProps: {
@@ -134,7 +149,6 @@ function checkAutocomplete() {
     autocompleteQuery.value = match[1]
     showAutocomplete.value = true
     selectedIndex.value = 0
-    // 计算弹窗位置
     const coords = editor.value.view.coordsAtPos(pos.pos)
     autocompletePosition.value = {
       top: coords.bottom + 4,
@@ -198,6 +212,27 @@ function handleKeydown(e) {
   }
 }
 
+// ========== 图片上传 ==========
+function triggerImageUpload() {
+  fileInputRef.value?.click()
+}
+
+function handleFileSelect(e) {
+  const files = e.target.files
+  if (files) {
+    Array.from(files).forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        reader.onload = (evt) => {
+          editor.value?.chain().focus().setImage({ src: evt.target.result }).run()
+        }
+        reader.readAsDataURL(file)
+      }
+    })
+  }
+  e.target.value = ''
+}
+
 // 图片拖拽上传
 function handleDrop(e) {
   e.preventDefault()
@@ -217,6 +252,42 @@ function handleDrop(e) {
 
 function handleDragOver(e) {
   e.preventDefault()
+}
+
+// ========== 表格功能 ==========
+function openTableModal() {
+  tableRows.value = 3
+  tableCols.value = 3
+  showTableModal.value = true
+}
+
+function insertTable() {
+  editor.value?.chain().focus().insertTable({
+    rows: tableRows.value,
+    cols: tableCols.value,
+    withHeaderRow: true
+  }).run()
+  showTableModal.value = false
+}
+
+function addTableRow() {
+  editor.value?.chain().focus().addRowAfter().run()
+}
+
+function addTableCol() {
+  editor.value?.chain().focus().addColumnAfter().run()
+}
+
+function deleteTableRow() {
+  editor.value?.chain().focus().deleteRow().run()
+}
+
+function deleteTableCol() {
+  editor.value?.chain().focus().deleteColumn().run()
+}
+
+function deleteTable() {
+  editor.value?.chain().focus().deleteTable().run()
 }
 
 // 点击双向链接
@@ -265,6 +336,26 @@ onBeforeUnmount(() => {
         工作 &gt; <span>{{ note?.title }}</span>
       </div>
       <div class="header-actions">
+        <!-- 工具栏按钮 -->
+        <div class="editor-toolbar">
+          <button class="toolbar-btn" title="插入图片" @click="triggerImageUpload">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
+          <button class="toolbar-btn" title="插入表格" @click="openTableModal">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="3" y1="15" x2="21" y2="15"/>
+              <line x1="9" y1="3" x2="9" y2="21"/>
+              <line x1="15" y1="3" x2="15" y2="21"/>
+            </svg>
+          </button>
+        </div>
+
         <button class="btn-icon" title="历史版本" @click="showHistory = !showHistory">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
@@ -293,6 +384,40 @@ onBeforeUnmount(() => {
         />
 
         <EditorContent :editor="editor" @update="onContentUpdate" />
+
+        <!-- 表格工具栏（当光标在表格内时显示） -->
+        <div v-if="editor?.isActive('table')" class="table-toolbar">
+          <button class="table-btn" @click="addTableRow" title="添加行">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            添加行
+          </button>
+          <button class="table-btn" @click="deleteTableRow" title="删除行">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            删除行
+          </button>
+          <button class="table-btn" @click="addTableCol" title="添加列">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            添加列
+          </button>
+          <button class="table-btn" @click="deleteTableCol" title="删除列">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            删除列
+          </button>
+          <button class="table-btn danger" @click="deleteTable" title="删除表格">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            删除表格
+          </button>
+        </div>
 
         <!-- 块引用展示 -->
         <div v-if="blockRefs.length > 0" class="block-refs-panel">
@@ -332,6 +457,48 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <!-- 隐藏的文件输入框 -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept="image/*"
+      multiple
+      style="display: none"
+      @change="handleFileSelect"
+    />
+
+    <!-- 表格创建弹窗 -->
+    <Teleport to="body">
+      <div v-if="showTableModal" class="modal-overlay" @click.self="showTableModal = false">
+        <div class="modal-content">
+          <h3>插入表格</h3>
+          <div class="modal-field">
+            <label>行数</label>
+            <div class="stepper">
+              <button @click="tableRows = Math.max(2, tableRows - 1)">-</button>
+              <input type="number" v-model.number="tableRows" min="2" max="20" />
+              <button @click="tableRows = Math.min(20, tableRows + 1)">+</button>
+            </div>
+          </div>
+          <div class="modal-field">
+            <label>列数</label>
+            <div class="stepper">
+              <button @click="tableCols = Math.max(2, tableCols - 1)">-</button>
+              <input type="number" v-model.number="tableCols" min="2" max="10" />
+              <button @click="tableCols = Math.min(10, tableCols + 1)">+</button>
+            </div>
+          </div>
+          <div class="modal-preview">
+            <span>预览: {{ tableRows }} 行 × {{ tableCols }} 列</span>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" @click="showTableModal = false">取消</button>
+            <button class="btn-confirm" @click="insertTable">插入</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 双向链接自动补全弹窗 -->
     <Teleport to="body">
       <div
@@ -364,7 +531,7 @@ onBeforeUnmount(() => {
 }
 
 .editor-header {
-  padding: 16px 24px;
+  padding: 12px 24px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -375,6 +542,32 @@ onBeforeUnmount(() => {
 .breadcrumb span { color: var(--text-primary); }
 
 .header-actions { display: flex; align-items: center; gap: 12px; }
+
+/* 工具栏按钮 */
+.editor-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px;
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+.toolbar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.toolbar-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
 
 .btn-icon {
   background: transparent;
@@ -408,6 +601,32 @@ onBeforeUnmount(() => {
 }
 .title-input:focus { outline: none; }
 .title-input::placeholder { color: var(--text-secondary); }
+
+/* 表格工具栏 */
+.table-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.table-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--border);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.table-btn:hover { background: var(--accent); }
+.table-btn.danger:hover { background: #dc3545; }
 
 /* 块引用 */
 .block-refs-panel {
@@ -509,22 +728,115 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--border);
 }
 .autocomplete-item:last-child { border-bottom: none; }
-.autocomplete-item:hover, .autocomplete-item.selected {
-  background: var(--border);
+.autocomplete-item:hover, .autocomplete-item.selected { background: var(--border); }
+.autocomplete-title { display: block; font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; }
+.autocomplete-preview { display: block; font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 表格弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
-.autocomplete-title {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 2px;
+.modal-content {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  width: 320px;
 }
-.autocomplete-preview {
+.modal-content h3 {
+  margin: 0 0 20px;
+  font-size: 18px;
+}
+.modal-field {
+  margin-bottom: 16px;
+}
+.modal-field label {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 8px;
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stepper button {
+  width: 36px;
+  height: 36px;
+  background: var(--border);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+}
+.stepper button:hover { background: var(--accent); }
+.stepper input {
+  width: 60px;
+  height: 36px;
+  text-align: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+.stepper input:focus { outline: none; border-color: var(--accent); }
+.modal-preview {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+}
+.modal-actions {
+  display: flex;
+  gap: 12px;
+}
+.btn-cancel {
+  flex: 1;
+  padding: 10px;
+  background: var(--border);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.btn-cancel:hover { background: #444; }
+.btn-confirm {
+  flex: 1;
+  padding: 10px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+.btn-confirm:hover { background: var(--accent-hover); }
+
+/* 表格样式 */
+.editor-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+}
+.editor-table td, .editor-table th {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  min-width: 80px;
+}
+.editor-table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+.editor-table .selectedCell {
+  background: rgba(233, 69, 96, 0.2);
 }
 </style>
