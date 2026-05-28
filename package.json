@@ -1,13 +1,15 @@
 {
   "name": "notes-app",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "A modern note-taking app with bidirectional links, block references, and tags",
-  "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "electron": "electron .",
+    "electron:dev": "concurrently \"vite\" \"electron .\"",
+    "electron:build": "vite build && electron-builder"
   },
   "dependencies": {
     "@tiptap/extension-code-block": "^2.2.0",
@@ -30,8 +32,39 @@
     "vue-router": "^4.2.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
+    "@tauri-apps/cli": "^2.11.2",
     "@vitejs/plugin-vue": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1",
     "vite": "^5.0.0"
+  },
+  "build": {
+    "appId": "com.notes.app",
+    "productName": "Notes",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
