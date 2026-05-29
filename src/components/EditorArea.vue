@@ -95,9 +95,15 @@ const editor = useEditor({
       resizable: true,
       HTMLAttributes: { class: 'editor-table' }
     }),
-    TableRow,
-    TableCell,
-    TableHeader
+    TableRow.configure({
+      HTMLAttributes: { class: 'table-row' }
+    }),
+    TableCell.configure({
+      HTMLAttributes: { class: 'table-cell' }
+    }),
+    TableHeader.configure({
+      HTMLAttributes: { class: 'table-header-cell' }
+    }),
   ],
   content: '',
   editorProps: {
@@ -821,22 +827,100 @@ onBeforeUnmount(() => {
 }
 .btn-confirm:hover { background: var(--accent-hover); }
 
-/* 表格样式 */
+/* Excel 风格表格样式 */
 .editor-table {
   border-collapse: collapse;
   width: 100%;
   margin: 16px 0;
+  font-size: 14px;
+  background: white;
+  border: 1px solid #c0c0c0;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #c0c0c0;
 }
 .editor-table td, .editor-table th {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
+  border: 1px solid #d4d4d4;
+  padding: 6px 10px;
   min-width: 80px;
+  text-align: left;
+  vertical-align: middle;
+  background: white;
+  color: #1d1d1f;
+  transition: background 0.1s;
 }
 .editor-table th {
-  background: var(--bg-secondary);
+  background: linear-gradient(180deg, #f0f0f0 0%, #e8e8e8 100%);
+  color: #1d1d1f;
   font-weight: 600;
+  font-size: 13px;
+  border-bottom: 2px solid #c0c0c0;
+  position: relative;
+  user-select: none;
 }
+.editor-table th:hover {
+  background: linear-gradient(180deg, #e8e8e8 0%, #e0e0e0 100%);
+}
+/* 列选择器效果 */
+.editor-table th::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 20%;
+  height: 60%;
+  width: 1px;
+  background: rgba(0,0,0,0.15);
+}
+/* 选中单元格 - Excel 蓝框 */
+.editor-table td.selectedCell,
 .editor-table .selectedCell {
-  background: rgba(233, 69, 96, 0.2);
+  outline: 2px solid #0078d4;
+  outline-offset: -1px;
+  background: #e6f2ff !important;
+}
+/* 可编辑效果 */
+.editor-table td:focus,
+.editor-table td.selectedCell {
+  outline: 2px solid #0078d4;
+  outline-offset: -1px;
+  background: #e6f2ff;
+}
+/* 悬停效果 - 轻微高亮 */
+.editor-table tr:hover td {
+  background: #f5f5f5;
+}
+/* 浅色模式斑马纹（可选） */
+body:not(.light-mode) .editor-table {
+  background: var(--bg-primary);
+}
+body:not(.light-mode) .editor-table td,
+body:not(.light-mode) .editor-table th {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+body:not(.light-mode) .editor-table th {
+  background: var(--bg-secondary);
+  border-bottom-color: var(--accent);
+}
+body:not(.light-mode) .editor-table th::after {
+  background: var(--border);
+}
+body:not(.light-mode) .editor-table tr:hover td {
+  background: rgba(255,255,255,0.05);
+}
+body:not(.light-mode) .editor-table td.selectedCell {
+  background: rgba(0, 120, 212, 0.2) !important;
+  outline-color: #0078d4;
+}
+/* 表格工具栏 */
+.table-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #f0f0f0 0%, #e8e8e8 100%);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  border: 1px solid #c0c0c0;
 }
 </style>

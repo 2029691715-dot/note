@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useNotesStore } from './stores/notes'
 import SidebarNav from './components/SidebarNav.vue'
 import FileList from './components/FileList.vue'
@@ -35,10 +35,19 @@ const displayedNotes = computed(() => {
   return currentView.value === 'search' ? store.searchResults : store.notes
 })
 
+// 主题切换监听
+watch(() => store.darkMode, (isDark) => {
+  document.body.classList.toggle('light-mode', !isDark)
+})
+
 onMounted(() => {
   store.loadNotes()
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  // 初始化主题
+  if (!store.darkMode) {
+    document.body.classList.add('light-mode')
+  }
 })
 
 onUnmounted(() => {
