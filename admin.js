@@ -550,6 +550,7 @@
           '<div class="editor-bar">' +
           '<span class="eb-status" id="ebStatus">' + (editorState.id ? "编辑文章" : "新建文章") + "</span>" +
           '<div class="eb-actions">' +
+          '<button type="button" class="btn" id="ebImport">导入 MD</button>' +
           '<button type="button" class="btn" id="ebPreview">预览</button>' +
           '<button type="button" class="btn" id="ebDraft">保存草稿</button>' +
           '<button type="button" class="btn btn-primary" id="ebPublish">发布</button>' +
@@ -598,6 +599,8 @@
           "</div>" +
           "</div></div></div></div>" +
           '<input type="file" id="editorImageInput" accept="image/*" multiple style="display:none" />'
+          +
+          '<input type="file" id="mdImportInput" accept=".md,.txt,.markdown,text/markdown,text/plain" style="display:none" />'
       );
 
       try {
@@ -733,6 +736,32 @@
       fileInput.addEventListener("change", () => {
         this.handleImageFiles(Array.from(fileInput.files || []));
         fileInput.value = "";
+      });
+
+      const importInput = $("#mdImportInput");
+      $("#ebImport").addEventListener("click", () => importInput.click());
+      importInput.addEventListener("change", () => {
+        const file = importInput.files && importInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          let text = String(reader.result || "").replace(/^\uFEFF/, "");
+          const first = (text.split(/\r?\n/, 1)[0] || "").trim();
+          if (first.startsWith("# ")) {
+            if (!$("#postTitle").value.trim()) {
+              $("#postTitle").value = first.replace(/^#\s+/, "").trim();
+            }
+            text = text.replace(/^#\s+.*(?:\r?\n|$)/, "");
+          }
+          $("#mdBody").value = text;
+          editorState.mdDirty = true;
+          this.renderMdPreview();
+          const mdTab = $('.tabs button[data-tab="md"]');
+          if (mdTab) mdTab.click();
+          showToast("Markdown 已导入，请检查后保存");
+        };
+        reader.readAsText(file, "utf-8");
+        importInput.value = "";
       });
 
       $("#ebDraft").addEventListener("click", () => this.savePost(false));
