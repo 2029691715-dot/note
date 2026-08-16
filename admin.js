@@ -557,6 +557,14 @@
           "</div></div>" +
           '<div class="editor-grid">' +
           '<aside class="editor-side">' +
+          '<div class="crawl-help">' +
+          '<p class="crawl-help-title">网页抓取命令</p>' +
+          '<p class="crawl-help-tip">在电脑终端运行，抓取后自动推成草稿：</p>' +
+          '<div class="crawl-cmd">' +
+          '<code id="crawlCmd">python D:\\blog\\crawler.py --draft https://网址</code>' +
+          '<button type="button" class="btn btn-sm" id="copyCrawlCmd">复制</button>' +
+          "</div>" +
+          "</div>" +
           '<div class="field"><label for="postTitle">标题</label><input type="text" id="postTitle" placeholder="文章标题" /></div>' +
           '<div class="field"><label for="postCategory">分类</label><input type="text" id="postCategory" list="catList" placeholder="如：笔记 / 教程 / 随笔" /></div>' +
           '<datalist id="catList"></datalist>' +
@@ -762,6 +770,23 @@
         };
         reader.readAsText(file, "utf-8");
         importInput.value = "";
+      });
+
+      $("#copyCrawlCmd").addEventListener("click", async () => {
+        const cmd = $("#crawlCmd").textContent;
+        try {
+          await navigator.clipboard.writeText(cmd);
+        } catch (e) {
+          const ta = document.createElement("textarea");
+          ta.value = cmd;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+        }
+        showToast("命令已复制");
       });
 
       $("#ebDraft").addEventListener("click", () => this.savePost(false));
