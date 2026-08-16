@@ -1,0 +1,40 @@
+{
+  "posts": [
+    {
+      "id": "welcome",
+      "slug": "welcome",
+      "title": "你好，我的博客",
+      "category": "随笔",
+      "tags": ["博客", "开始"],
+      "date": "2026-08-16",
+      "updated": "2026-08-16",
+      "status": "published",
+      "excerpt": "这里是我随手记录的地方：学习笔记、技术教程、生活随笔，都会陆续出现在这里。",
+      "readingTime": 2
+    },
+    {
+      "id": "data-structure-notes",
+      "slug": "data-structure-notes",
+      "title": "数据结构笔记：线性表与顺序表",
+      "category": "笔记",
+      "tags": ["数据结构", "顺序表", "线性表"],
+      "date": "2026-08-16",
+      "updated": "2026-08-16",
+      "status": "published",
+      "excerpt": "线性表与顺序表的定义和特点，以及一个关于物理地址与逻辑地址的小例子。",
+      "readingTime": 2
+    },
+    {
+      "id": "editor-guide",
+      "slug": "editor-guide",
+      "title": "管理员使用手册",
+      "category": "教程",
+      "tags": ["使用说明", "管理"],
+      "date": "2026-08-16",
+      "updated": "2026-08-16",
+      "status": "draft",
+      "excerpt": "演示草稿功能：写作方式、图片上传、发布流程与评论统计设置。",
+      "readingTime": 2
+    }
+  ]
+}
