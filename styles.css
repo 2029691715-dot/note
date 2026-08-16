@@ -46,6 +46,11 @@
   box-sizing: border-box;
 }
 
+/* 带 hidden 属性的元素必须隐藏（防止 display 样式覆盖 hidden 导致浮层常驻） */
+[hidden] {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
