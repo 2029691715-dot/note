@@ -1,11 +1,26 @@
 {
   "posts": [
     {
+      "id": "crawled-HOWTO-Fetch-Internet-Resources-Using-The-20260816182552",
+      "slug": "crawled-HOWTO-Fetch-Internet-Resources-Using-The-20260816182552",
+      "title": "HOWTO Fetch Internet Resources Using The urllib Package",
+      "category": "未分类",
+      "tags": [],
+      "date": "2026-08-16",
+      "updated": "2026-08-16",
+      "status": "draft",
+      "excerpt": "Author: Michael Foord https://agileabstractions.com/ Introduction ¶ introduction urllib.request is a Python mo",
+      "readingTime": 56
+    },
+    {
       "id": "welcome",
       "slug": "welcome",
       "title": "你好，我的博客",
       "category": "随笔",
-      "tags": ["博客", "开始"],
+      "tags": [
+        "博客",
+        "开始"
+      ],
       "date": "2026-08-16",
       "updated": "2026-08-16",
       "status": "published",
@@ -17,7 +32,11 @@
       "slug": "data-structure-notes",
       "title": "数据结构笔记：线性表与顺序表",
       "category": "笔记",
-      "tags": ["数据结构", "顺序表", "线性表"],
+      "tags": [
+        "数据结构",
+        "顺序表",
+        "线性表"
+      ],
       "date": "2026-08-16",
       "updated": "2026-08-16",
       "status": "published",
@@ -29,7 +48,10 @@
       "slug": "editor-guide",
       "title": "管理员使用手册",
       "category": "教程",
-      "tags": ["使用说明", "管理"],
+      "tags": [
+        "使用说明",
+        "管理"
+      ],
       "date": "2026-08-16",
       "updated": "2026-08-16",
       "status": "draft",
