@@ -501,6 +501,7 @@
               '<p class="ap-meta">' + esc(p.category || "未分类") + " · " + esc(p.date) + "</p></div>" +
               '<div><span class="badge ' + statusCls + '">' + statusText + "</span></div>" +
               '<div class="ap-actions">' +
+              '<a class="btn btn-sm btn-primary" href="#/admin/edit/' + esc(p.id) + '">编辑</a>' +
               '<a class="btn btn-sm" target="_blank" rel="noopener" href="#/post/' + encodeURIComponent(p.slug || p.id) + '">预览</a>' +
               '<button type="button" class="btn btn-sm btn-danger" data-del="' + esc(p.id) + '">删除</button>' +
               "</div>";
