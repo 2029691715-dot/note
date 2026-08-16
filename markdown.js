@@ -116,7 +116,22 @@
   function render(src) {
     headingCounters = {};
     const toc = [];
-    const lines = String(src || "").replace(/\r\n?/g, "\n").split("\n");
+    const mathStash = [];
+    let text = String(src || "").replace(/\r\n?/g, "\n");
+
+    // 先保护数学公式，避免 $ 与 _ * 等符号被 Markdown 规则误解析
+    text = text.replace(/\$\$([\s\S]+?)\$\$/g, (m, c) => {
+      const tk = "\u0000MATH" + mathStash.length + "\u0000";
+      mathStash.push({ display: true, text: c.trim() });
+      return tk;
+    });
+    text = text.replace(/(^|[^$])\$([^$\n]+?)\$/g, (m, before, c) => {
+      const tk = before + "\u0000MATH" + mathStash.length + "\u0000";
+      mathStash.push({ display: false, text: c.trim() });
+      return tk;
+    });
+
+    const lines = text.split("\n");
     const codeBlocks = [];
     const blocks = [];
     let i = 0;
@@ -355,6 +370,12 @@
         highlightCode(cb.code, cb.lang) +
         "</code></pre></div>"
       );
+    });
+
+    html = html.replace(/\u0000MATH(\d+)\u0000/g, (m, idx) => {
+      const mt = mathStash[+idx];
+      const raw = (mt.display ? "$$" : "$") + mt.text + (mt.display ? "$$" : "$");
+      return '<span class="math">' + escapeHtml(raw) + "</span>";
     });
 
     return { html, toc };
