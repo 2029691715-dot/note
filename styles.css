@@ -1264,6 +1264,51 @@ select:focus,
   background: var(--surface);
 }
 
+.crawl-help {
+  border: 1px solid var(--line);
+  background: var(--accent-soft);
+  padding: 0.9rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.crawl-help-title {
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin: 0 0 0.4rem;
+}
+
+.crawl-help-tip {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  margin: 0 0 0.65rem;
+  line-height: 1.6;
+}
+
+.crawl-cmd {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.crawl-cmd code {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.6rem;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.crawl-cmd .btn-sm {
+  flex-shrink: 0;
+}
+
 .editor-main {
   min-width: 0;
 }
