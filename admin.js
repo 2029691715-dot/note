@@ -38,6 +38,15 @@
       .replace(/"/g, "&quot;");
   }
 
+  function xmlEsc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
   function today() {
     return new Date().toISOString().slice(0, 10);
   }
@@ -209,6 +218,45 @@
       location.hash = "#/admin";
     },
 
+    autosaveKey() {
+      return "blog_autosave_" + (editorState.id || "new");
+    },
+
+    saveAutosave() {
+      if (editorState.busy) return;
+      try {
+        const data = {
+          title: $("#postTitle").value,
+          category: $("#postCategory").value,
+          tags: $("#postTags").value,
+          date: $("#postDate").value,
+          excerpt: $("#postExcerpt").value,
+          body: this.getEditorMarkdown(),
+          mode: editorState.mode,
+          ts: Date.now()
+        };
+        localStorage.setItem(this.autosaveKey(), JSON.stringify(data));
+      } catch (e) {}
+    },
+
+    loadAutosave() {
+      try {
+        const raw = localStorage.getItem(this.autosaveKey());
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (Date.now() - (data.ts || 0) > 24 * 3600 * 1000) return null;
+        return data;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    clearAutosave() {
+      try {
+        localStorage.removeItem(this.autosaveKey());
+      } catch (e) {}
+    },
+
     async gh(path, opts) {
       opts = opts || {};
       const cfg = this.getConfig();
@@ -307,6 +355,100 @@
         throw e;
       }
       await this.gh(path, { method: "DELETE", body: { message, sha: existing.sha } });
+    },
+
+    async ghFetch(url) {
+      const cfg = this.getConfig();
+      if (!cfg.token) throw new Error("缺少访问令牌");
+      const res = await fetch(url, {
+        headers: {
+          Authorization: "Bearer " + cfg.token,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      });
+      if (!res.ok) {
+        let msg = "请求失败（" + res.status + "）";
+        try {
+          const j = await res.json();
+          if (j && j.message) msg = j.message;
+        } catch (e) {}
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+      }
+      return res.json();
+    },
+
+    publicFeedPosts(posts) {
+      const today = new Date().toISOString().slice(0, 10);
+      return posts
+        .filter(
+          (p) =>
+            (p.status === "published" || p.status === "scheduled") &&
+            String(p.date) <= today
+        )
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    },
+
+    siteBase() {
+      const cfg = this.getConfig();
+      return "https://" + (cfg.owner || "owner") + ".github.io/" + (cfg.repo || "repo") + "/";
+    },
+
+    rssContent(posts) {
+      const base = this.siteBase();
+      const site = (window.App && App.site) || {};
+      const items = this.publicFeedPosts(posts)
+        .map((p) => {
+          const link = base + "#/post/" + encodeURIComponent(p.slug || p.id);
+          const pubDate = new Date(String(p.date) + "T00:00:00Z").toUTCString();
+          return (
+            "<item><title>" + xmlEsc(p.title) + "</title>" +
+            "<link>" + xmlEsc(link) + "</link>" +
+            "<guid>" + xmlEsc(link) + "</guid>" +
+            "<pubDate>" + pubDate + "</pubDate>" +
+            "<description><![CDATA[" + (p.excerpt || "") + "]]></description></item>"
+          );
+        })
+        .join("");
+      return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<rss version="2.0"><channel>' +
+        "<title>" + xmlEsc(site.title || "") + "</title>" +
+        "<link>" + xmlEsc(base) + "</link>" +
+        "<description>" + xmlEsc(site.description || "") + "</description>" +
+        "<lastBuildDate>" + new Date().toUTCString() + "</lastBuildDate>" +
+        items +
+        "</channel></rss>"
+      );
+    },
+
+    sitemapContent(posts) {
+      const base = this.siteBase();
+      const urls = [base, base + "#/archive", base + "#/about"];
+      this.publicFeedPosts(posts).forEach((p) => {
+        urls.push(base + "#/post/" + encodeURIComponent(p.slug || p.id));
+      });
+      return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+        urls.map((u) => "<url><loc>" + xmlEsc(u) + "</loc></url>").join("") +
+        "</urlset>"
+      );
+    },
+
+    async writeFeeds(posts) {
+      try {
+        await this.saveFile("rss.xml", this.rssContent(posts), "更新 RSS");
+      } catch (e) {
+        console.warn("RSS 更新失败", e);
+      }
+      try {
+        await this.saveFile("sitemap.xml", this.sitemapContent(posts), "更新站点地图");
+      } catch (e) {
+        console.warn("站点地图更新失败", e);
+      }
     },
 
     /* ---------------- 登录 / 首次设置 ---------------- */
@@ -494,11 +636,20 @@
           .forEach((p) => {
             const row = document.createElement("div");
             row.className = "admin-post";
-            const statusCls = p.status === "published" ? "badge-published" : "badge-draft";
-            const statusText = p.status === "published" ? "已发布" : "草稿";
+            let statusCls = "badge-draft";
+            let statusText = "草稿";
+            if (p.status === "published") {
+              statusCls = "badge-published";
+              statusText = "已发布";
+            } else if (p.status === "scheduled") {
+              statusCls = "badge-scheduled";
+              statusText = "定时";
+            }
             row.innerHTML =
               '<div><p class="ap-title"><a href="#/admin/edit/' + esc(p.id) + '">' + esc(p.title) + "</a></p>" +
-              '<p class="ap-meta">' + esc(p.category || "未分类") + " · " + esc(p.date) + "</p></div>" +
+              '<p class="ap-meta">' +
+              (p.pinned ? "置顶 · " : "") +
+              esc(p.category || "未分类") + " · " + esc(p.date) + "</p></div>" +
               '<div><span class="badge ' + statusCls + '">' + statusText + "</span></div>" +
               '<div class="ap-actions">' +
               '<a class="btn btn-sm btn-primary" href="#/admin/edit/' + esc(p.id) + '">编辑</a>' +
@@ -525,6 +676,7 @@
           JSON.stringify({ posts }, null, 2),
           "删除文章: " + id
         );
+        await this.writeFeeds(posts);
         localStorage.removeItem(CACHE_KEY);
         if (window.App) App.bodies = {};
         showToast("文章已删除");
@@ -552,6 +704,7 @@
           '<span class="eb-status" id="ebStatus">' + (editorState.id ? "编辑文章" : "新建文章") + "</span>" +
           '<div class="eb-actions">' +
           '<button type="button" class="btn" id="ebImport">导入 MD</button>' +
+          '<button type="button" class="btn" id="ebHistory">历史</button>' +
           '<button type="button" class="btn" id="ebPreview">预览</button>' +
           '<button type="button" class="btn" id="ebDraft">保存草稿</button>' +
           '<button type="button" class="btn btn-primary" id="ebPublish">发布</button>' +
@@ -570,7 +723,9 @@
           '<div class="field"><label for="postCategory">分类</label><input type="text" id="postCategory" list="catList" placeholder="如：笔记 / 教程 / 随笔" /></div>' +
           '<datalist id="catList"></datalist>' +
           '<div class="field"><label for="postTags">标签</label><input type="text" id="postTags" placeholder="逗号分隔，如：数据结构, 笔记" /></div>' +
-          '<div class="field"><label for="postDate">日期</label><input type="date" id="postDate" /></div>' +
+          '<div class="field"><label for="postDate">日期</label><input type="date" id="postDate" />' +
+          '<p class="field-hint">设为未来日期并点「发布」，即为定时发布</p></div>' +
+          '<div class="check-row"><input type="checkbox" id="postPinned" /><label for="postPinned">置顶这篇文章</label></div>' +
           '<div class="field"><label for="postExcerpt">摘要（留空自动生成）</label><textarea id="postExcerpt" rows="3"></textarea></div>' +
           "</aside>" +
           '<div class="editor-main">' +
@@ -610,6 +765,11 @@
           '<input type="file" id="editorImageInput" accept="image/*" multiple style="display:none" />'
           +
           '<input type="file" id="mdImportInput" accept=".md,.txt,.markdown,text/markdown,text/plain" style="display:none" />'
+          +
+          '<div class="modal-mask" id="historyModal" hidden>' +
+          '<div class="modal"><div class="modal-head"><span>历史版本</span>' +
+          '<button type="button" class="icon-btn" id="historyClose" aria-label="关闭">×</button></div>' +
+          '<div class="modal-body" id="historyBody"></div></div></div>'
       );
 
       try {
@@ -642,9 +802,26 @@
       $("#postCategory").value = post ? post.category || "" : "";
       $("#postTags").value = post && post.tags ? post.tags.join(", ") : "";
       $("#postDate").value = post ? post.date : today();
+      $("#postPinned").checked = !!(post && post.pinned);
       $("#postExcerpt").value = post && post.excerpt ? post.excerpt : "";
       $("#mdBody").value = body;
       this.renderMdPreview();
+
+      const autosave = this.loadAutosave();
+      if (autosave && (autosave.title || autosave.body)) {
+        if (confirm("检测到上次未保存的编辑内容，是否恢复？")) {
+          $("#postTitle").value = autosave.title || "";
+          $("#postCategory").value = autosave.category || "";
+          $("#postTags").value = autosave.tags || "";
+          $("#postDate").value = autosave.date || today();
+          $("#postExcerpt").value = autosave.excerpt || "";
+          $("#mdBody").value = autosave.body || "";
+          this.renderMdPreview();
+          showToast("已恢复未保存的内容");
+        } else {
+          this.clearAutosave();
+        }
+      }
 
       this.bindEditor();
     },
@@ -654,6 +831,12 @@
       const wys = $("#wysBody");
       const mdPanel = $("#mdPanel");
       const wysPanel = $("#wysPanel");
+
+      if (editorState._autosaveTimer) clearInterval(editorState._autosaveTimer);
+      if (editorState._autosaveHandler) window.removeEventListener("beforeunload", editorState._autosaveHandler);
+      editorState._autosaveTimer = setInterval(() => this.saveAutosave(), 5000);
+      editorState._autosaveHandler = () => this.saveAutosave();
+      window.addEventListener("beforeunload", editorState._autosaveHandler);
 
       $$(".tabs button").forEach((b) =>
         b.addEventListener("click", () => {
@@ -790,6 +973,14 @@
         showToast("命令已复制");
       });
 
+      $("#ebHistory").addEventListener("click", () => this.openHistory());
+      $("#historyClose").addEventListener("click", () => {
+        $("#historyModal").hidden = true;
+      });
+      $("#historyModal").addEventListener("click", (e) => {
+        if (e.target === $("#historyModal")) $("#historyModal").hidden = true;
+      });
+
       $("#ebDraft").addEventListener("click", () => this.savePost(false));
       $("#ebPublish").addEventListener("click", () => this.savePost(true));
       $("#ebPreview").addEventListener("click", () => this.savePost(false, { preview: true }));
@@ -841,11 +1032,127 @@
       const preview = $("#mdPreview");
       if (!mdTa || !preview) return;
       preview.innerHTML = Markdown.render(mdTa.value || "").html;
+      if (window.App && App.renderMath) App.renderMath(preview);
     },
 
     getEditorMarkdown() {
       if (editorState.mode === "md") return $("#mdBody").value;
       return Markdown.htmlToMarkdown($("#wysBody").innerHTML);
+    },
+
+    async openHistory() {
+      const id = editorState.id;
+      if (!id) {
+        showToast("请先保存一次文章，之后才能查看历史版本");
+        return;
+      }
+      const modal = $("#historyModal");
+      const body = $("#historyBody");
+      modal.hidden = false;
+      body.innerHTML = '<p class="search-empty">正在加载历史版本…</p>';
+      try {
+        const cfg = this.getConfig();
+        const url =
+          "https://api.github.com/repos/" +
+          encodeURIComponent(cfg.owner) +
+          "/" +
+          encodeURIComponent(cfg.repo) +
+          "/commits?path=content/posts/" +
+          encodeURIComponent(id) +
+          ".md&per_page=20";
+        const commits = await this.ghFetch(url);
+        if (!Array.isArray(commits) || !commits.length) {
+          body.innerHTML = '<p class="search-empty">还没有历史版本</p>';
+          return;
+        }
+        body.innerHTML =
+          '<div class="history-list">' +
+          commits
+            .map(
+              (c) =>
+                '<div class="history-item" data-sha="' +
+                esc(c.sha) +
+                '"><div class="hi-main"><p class="hi-msg">' +
+                esc(c.commit && c.commit.message ? c.commit.message.split("\n")[0] : "") +
+                '</p><p class="hi-meta">' +
+                esc((c.commit && c.commit.author && c.commit.author.date
+                  ? c.commit.author.date.slice(0, 10)
+                  : "")) +
+                " · " +
+                esc(String(c.sha).slice(0, 7)) +
+                "</p></div>" +
+                '<button type="button" class="btn btn-sm" data-view="' +
+                esc(c.sha) +
+                '">查看</button></div>'
+            )
+            .join("") +
+          "</div>";
+
+        $$("[data-view]", body).forEach((b) =>
+          b.addEventListener("click", () => this.viewHistory(b.dataset.view))
+        );
+      } catch (e) {
+        body.innerHTML = '<div class="error-state"><h2>加载失败</h2><p>' + esc(e.message) + "</p></div>";
+      }
+    },
+
+    async viewHistory(sha) {
+      const id = editorState.id;
+      const body = $("#historyBody");
+      body.innerHTML = '<p class="search-empty">正在读取该版本…</p>';
+      try {
+        const cfg = this.getConfig();
+        const url =
+          "https://api.github.com/repos/" +
+          encodeURIComponent(cfg.owner) +
+          "/" +
+          encodeURIComponent(cfg.repo) +
+          "/contents/content/posts/" +
+          encodeURIComponent(id) +
+          ".md?ref=" +
+          encodeURIComponent(sha);
+        const file = await this.ghFetch(url);
+        const content = b64decode(file.content);
+        body.innerHTML =
+          '<pre class="history-preview">' + esc(content) + "</pre>" +
+          '<div class="history-actions">' +
+          '<button type="button" class="btn btn-primary" id="historyRestore" data-sha="' + esc(sha) + '">恢复此版本</button>' +
+          '<button type="button" class="btn" id="historyBack">返回列表</button>' +
+          "</div>";
+        $("#historyBack").addEventListener("click", () => this.openHistory());
+        $("#historyRestore").addEventListener("click", async (e) => {
+          const btn = e.currentTarget;
+          if (!confirm("恢复这个历史版本？当前正文会被覆盖，建议先保存。")) return;
+          btn.disabled = true;
+          try {
+            await this.saveFile("content/posts/" + id + ".md", content, "恢复历史版本: " + id);
+            const posts = await this.loadPostsFromRepo();
+            const post = posts.find((p) => p.id === id || p.slug === id);
+            if (post) {
+              const clean = content
+                .replace(/[#>*_`~[\]!()|-]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+              post.excerpt = clean.slice(0, 110);
+              post.readingTime = Math.max(1, Math.round(clean.length / 350));
+              post.updated = today();
+              await this.saveFile(
+                "content/posts.json",
+                JSON.stringify({ posts }, null, 2),
+                "恢复文章历史版本: " + id
+              );
+              await this.writeFeeds(posts);
+            }
+            showToast("已恢复该历史版本");
+            location.hash = "#/admin/edit/" + id;
+          } catch (err) {
+            showToast("恢复失败：" + err.message);
+            btn.disabled = false;
+          }
+        });
+      } catch (e) {
+        body.innerHTML = '<div class="error-state"><h2>读取失败</h2><p>' + esc(e.message) + "</p></div>";
+      }
     },
 
     async uploadImages(md) {
@@ -886,7 +1193,8 @@
         .map((t) => t.trim())
         .filter(Boolean);
       const date = $("#postDate").value || today();
-      const status = publish ? "published" : "draft";
+      const status = publish ? (date > today() ? "scheduled" : "published") : "draft";
+      const pinned = !!($("#postPinned") && $("#postPinned").checked);
       editorState.busy = true;
       this.setBusy(true);
 
@@ -912,6 +1220,7 @@
           tags,
           date,
           status,
+          pinned,
           excerpt,
           readingTime,
           updated: today()
@@ -927,11 +1236,13 @@
           JSON.stringify({ posts }, null, 2),
           "更新文章列表: " + title
         );
+        await this.writeFeeds(posts);
 
+        this.clearAutosave();
         editorState.id = id;
         localStorage.removeItem(CACHE_KEY);
         if (window.App) App.bodies = {};
-        showToast(publish ? "文章已发布" : "草稿已保存");
+        showToast(publish ? (status === "scheduled" ? "已设为定时发布" : "文章已发布") : "草稿已保存");
         if (opts.preview) {
           window.open(location.href.split("#")[0] + "#/post/" + encodeURIComponent(id), "_blank");
         } else {
@@ -1081,6 +1392,10 @@
           };
 
           await this.saveFile("content/site.json", JSON.stringify(site, null, 2), "更新站点设置");
+          try {
+            const posts = await this.loadPostsFromRepo().catch(() => []);
+            await this.writeFeeds(posts);
+          } catch (e) {}
           localStorage.removeItem(CACHE_KEY);
           if (window.App) {
             App.site = site;
