@@ -169,6 +169,20 @@
         if (e.key === "Escape" && !lb.hidden) lb.hidden = true;
       });
 
+      const progress = $("#readProgress");
+      const backTop = $("#backTop");
+      const onScroll = () => {
+        const h = document.documentElement;
+        const scrollable = h.scrollHeight - h.clientHeight;
+        const ratio = scrollable > 0 ? (h.scrollTop / scrollable) * 100 : 0;
+        progress.style.width = ratio + "%";
+        if (h.scrollTop > 400) backTop.classList.add("show");
+        else backTop.classList.remove("show");
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      backTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+      onScroll();
+
       document.addEventListener("click", (e) => {
         const img = e.target.closest(".article-body img, .md-preview img, #wysBody img");
         if (img && img.closest("#lightbox") === null) {
@@ -242,10 +256,21 @@
     },
 
     visiblePosts() {
+      const today = new Date().toISOString().slice(0, 10);
       return this.posts
-        .filter((p) => p.status === "published" || isAdminSession())
+        .filter((p) => {
+          if (isAdminSession()) return true;
+          if (p.status === "draft") return false;
+          if (p.status === "published" || p.status === "scheduled") {
+            return String(p.date) <= today;
+          }
+          return false;
+        })
         .slice()
-        .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        .sort((a, b) => {
+          if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+          return String(b.date).localeCompare(String(a.date));
+        });
     },
 
     route() {
@@ -321,12 +346,16 @@
 
     postItemHtml(p, index) {
       const num = String(index + 1).padStart(2, "0");
-      const draft = p.status !== "published" ? '<span class="badge badge-draft">草稿</span>' : "";
+      const badges = [];
+      if (p.pinned) badges.push('<span class="badge badge-pinned">置顶</span>');
+      if (p.status === "draft") badges.push('<span class="badge badge-draft">草稿</span>');
+      else if (p.status === "scheduled") badges.push('<span class="badge badge-scheduled">定时</span>');
+      const badgeHtml = badges.join(" ");
       return (
         '<article class="post-item">' +
         '<div class="post-index">' + num + "</div>" +
         '<div class="post-main">' +
-        '<p class="post-kicker">' + esc(p.category || "随笔") + draft + "</p>" +
+        '<p class="post-kicker">' + esc(p.category || "随笔") + " " + badgeHtml + "</p>" +
         '<h2 class="post-title"><a href="#/post/' + encodeURIComponent(p.slug || p.id) + '">' + esc(p.title) + "</a></h2>" +
         (p.excerpt ? '<p class="post-excerpt">' + esc(p.excerpt) + "</p>" : "") +
         '<div class="post-meta">' +
@@ -425,6 +454,7 @@
         '<div class="wrap"><div class="page-head"><h1>关于</h1></div>' +
           '<div class="article-body about-body">' + rendered.html + "</div></div>"
       );
+      this.renderMath($("#app .about-body"));
     },
 
     async renderPost(id) {
@@ -526,6 +556,7 @@
         navHtml +
         comments;
 
+      this.renderMath(article.querySelector(".article-body"));
       if (comments) this.mountGiscus(post.slug || post.id);
     },
 
@@ -554,6 +585,32 @@
       s.setAttribute("data-loading", "lazy");
       s.async = true;
       host.appendChild(s);
+    },
+
+    renderMath(el) {
+      if (!el) return;
+      const run = () => {
+        if (typeof window.renderMathInElement !== "function") return false;
+        try {
+          window.renderMathInElement(el, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+              { left: "\\(", right: "\\)", display: false },
+              { left: "\\[", right: "\\]", display: true }
+            ],
+            throwOnError: false
+          });
+        } catch (e) {}
+        return true;
+      };
+      if (!run()) {
+        let tries = 0;
+        const timer = setInterval(() => {
+          tries++;
+          if (run() || tries > 30) clearInterval(timer);
+        }, 300);
+      }
     },
 
     searchablePosts() {
