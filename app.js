@@ -353,7 +353,7 @@
         posts.length === 0
           ? emptyStateHtml("还没有文章", '点击右上角「管理」，完成设置后写下第一篇吧。')
           : '<div class="post-list">' + posts.map((p, i) => this.postItemHtml(p, i)).join("") + "</div>";
-      this.renderApp(this.mastheadHtml() + chips + list);
+      this.renderApp('<div class="wrap">' + this.mastheadHtml() + chips + list + "</div>");
       $$(".chips button").forEach((b) =>
         b.addEventListener("click", () => {
           const cat = b.dataset.cat;
@@ -365,13 +365,17 @@
     renderPostList(items, title, sub) {
       if (!items.length) {
         this.renderApp(
-          '<div class="page-head"><h1>' + esc(title) + "</h1></div>" + emptyStateHtml("这里还没有文章", sub || "")
+          '<div class="wrap"><div class="page-head"><h1>' + esc(title) + "</h1></div>" +
+            emptyStateHtml("这里还没有文章", sub || "") +
+            "</div>"
         );
         return;
       }
       this.renderApp(
-        '<div class="page-head"><h1>' + esc(title) + "</h1><p>" + esc(sub || "") + "</p></div>" +
-          '<div class="post-list">' + items.map((p, i) => this.postItemHtml(p, i)).join("") + "</div>"
+        '<div class="wrap"><div class="page-head"><h1>' + esc(title) + "</h1><p>" + esc(sub || "") +
+          "</p></div>" +
+          '<div class="post-list">' + items.map((p, i) => this.postItemHtml(p, i)).join("") +
+          "</div></div>"
       );
     },
 
@@ -396,7 +400,7 @@
         const y = String(p.date).slice(0, 4);
         (years[y] = years[y] || []).push(p);
       });
-      let html = '<div class="page-head"><h1>归档</h1><p>共 ' + posts.length + " 篇文章</p></div>";
+      let html = '<div class="wrap"><div class="page-head"><h1>归档</h1><p>共 ' + posts.length + " 篇文章</p></div>";
       Object.keys(years)
         .sort()
         .reverse()
@@ -410,7 +414,7 @@
           });
           html += "</section>";
         });
-      this.renderApp(html);
+      this.renderApp(html + "</div>");
     },
 
     renderAbout() {
@@ -418,8 +422,8 @@
       const aboutMd = site.about || "";
       const rendered = Markdown.render(aboutMd);
       this.renderApp(
-        '<div class="page-head"><h1>关于</h1></div>' +
-          '<div class="article-body about-body">' + rendered.html + "</div>"
+        '<div class="wrap"><div class="page-head"><h1>关于</h1></div>' +
+          '<div class="article-body about-body">' + rendered.html + "</div></div>"
       );
     },
 
@@ -435,7 +439,7 @@
       }
 
       this.renderApp(
-        '<article class="article">' +
+        '<div class="wrap"><article class="article">' +
           '<a class="article-back" href="#/home">← 返回首页</a>' +
           '<div class="article-head">' +
           '<p class="article-kicker">' + esc(post.category || "随笔") + "</p>" +
@@ -450,7 +454,7 @@
           "</div>" +
           "</div>" +
           '<div class="article-body">' + skeletonParagraph() + "</div>" +
-          "</article>"
+          "</article></div>"
       );
 
       let body = this.bodies[id];
@@ -613,9 +617,9 @@
     async renderSearchView() {
       const q = "";
       this.renderApp(
-        '<div class="page-head"><h1>搜索</h1><p>支持标题、分类、标签与正文内容</p></div>' +
+        '<div class="wrap"><div class="page-head"><h1>搜索</h1><p>支持标题、分类、标签与正文内容</p></div>' +
           '<div class="search-view"><div class="field"><input id="searchViewInput" type="search" placeholder="输入关键词…" autocomplete="off" /></div>' +
-          '<div id="searchViewResults" class="post-list"></div></div>'
+          '<div id="searchViewResults" class="post-list"></div></div></div>'
       );
       const input = $("#searchViewInput");
       if (input) {
@@ -637,8 +641,8 @@
 
     renderError(msg) {
       this.renderApp(
-        '<div class="error-state"><h2>' + esc(msg || "出错了") + "</h2>" +
-          '<p>返回<a href="#/home">首页</a>继续浏览</p></div>'
+        '<div class="wrap"><div class="error-state"><h2>' + esc(msg || "出错了") + "</h2>" +
+          '<p>返回<a href="#/home">首页</a>继续浏览</p></div></div>'
       );
     }
   };
